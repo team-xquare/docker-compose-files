@@ -1,0 +1,56 @@
+version: '3.7'
+
+services:
+  zipkin:
+    image: openzipkin/zipkin
+    deploy:
+      replicas: 1
+      update_config:
+        parallelism: 1
+        delay: 1m30s
+        failure_action: rollback
+      rollback_config:
+        parallelism: 1
+        delay: 1m30s
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      resources:
+        limits:
+          memory: 500M
+        reservations:
+          memory: 100M
+    ports:
+      - "9411:9411"
+    environment:
+      RABBIT_CONCURRENCY: 1
+      RABBIT_CONNECTION_TIMEOUT: 6000
+      RABBIT_QUEUE: zipkin
+      RABBIT_ADDRESSES: "${RABBIT_HOST}:${RABBIT_PORT}"
+      RABBIT_PASSWORD: password
+      RABBIT_USER: user
+      RABBIT_VIRTUAL_HOST: zipkin_vhost
+      RABBIT_USE_SSL: "true"
+      STORAGE_TYPE: elasticsearch
+      ES_HOSTS: "http://${ELASTIC_SEARCH_HOST}:${ELASTIC_SEARCH_PORT}"
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:9411/health  || exit 1
+      interval: 10s
+      start_period: 15s
+      retries: 3
+
+  zipkin-dependencies:
+    image: openzipkin/zipkin-dependencies
+    deploy:
+      replicas: 1
+      restart_policy:
+        delay: 1h
+      resources:
+        limits:
+          memory: 550M
+        reservations:
+          memory: 100M
+    environment:
+      STORAGE_TYPE: elasticsearch
+
